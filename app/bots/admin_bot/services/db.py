@@ -1,7 +1,22 @@
 import sqlite3
 from pathlib import Path
+from services.logging_config import logger
 
 DB_PATH = Path("channels.db")
+
+def init_db():
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS channels (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id INTEGER UNIQUE,
+                title TEXT,
+                forwarding_enabled INTEGER DEFAULT 0
+            )
+        """)
+        conn.commit()
+        logger.info('База данных инициализирона')
 
 def get_connection():
     conn = sqlite3.connect("channels.db")

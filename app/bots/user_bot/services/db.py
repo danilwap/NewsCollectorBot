@@ -9,6 +9,20 @@ def get_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+def init_db():
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS channels (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id INTEGER UNIQUE,
+                title TEXT,
+                forwarding_enabled INTEGER DEFAULT 0
+            )
+        """)
+        conn.commit()
+        logger.info('База данных инициализирона')
+
 
 def get_active_channels():
     with get_connection() as conn:
@@ -42,8 +56,9 @@ def save_channels_to_db(channels):
         cursor = conn.cursor()
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS channels (
-                chat_id INTEGER PRIMARY KEY,
-                title TEXT,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id INTEGER UNIQUE,
+                name TEXT,
                 forwarding_enabled INTEGER DEFAULT 0
             )
         """)

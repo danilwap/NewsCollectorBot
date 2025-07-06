@@ -4,7 +4,7 @@ from telethon.tl.functions.channels import GetForumTopicsRequest, CreateForumTop
 from config import api_id, api_hash, phone, target_forum_id
 from telethon.tl.types import Channel, Chat
 from logging_config import logger
-from services.db import get_active_channels, save_channels_to_db
+from services.db import get_active_channels, save_channels_to_db, init_db
 from telethon import TelegramClient, events
 from telethon.tl.functions.channels import JoinChannelRequest
 
@@ -136,6 +136,7 @@ async def get_my_id(client):
 # === Запуск клиента ===
 async def main():
     await client.start()
+    init_db()
     logger.info("Бот запущен и следит за каналами...")
     await get_all_channels(client)
     await get_my_id(client)
