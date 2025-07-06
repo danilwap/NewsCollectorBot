@@ -1,62 +1,74 @@
-from config import api_id, api_hash, phone
+from config import api_id, api_hash, phone, target_forum_id
 
 from telethon import TelegramClient, events
-from telethon.tl.functions.messages import GetDialogFiltersRequest
-from telethon.tl.functions.channels import GetFullChannelRequest, GetForumTopicsRequest
-from telethon.errors.rpcerrorlist import ChannelPrivateError, ChannelInvalidError, MessageIdInvalidError
+from telethon.tl.functions.channels import GetForumTopicsRequest, CreateForumTopicRequest
 import asyncio
 from logging_config import logger
 from services.db import get_active_channels
 
-from telethon.tl.types import Channel, Chat, User
+from telethon.tl.types import Channel, Chat
 
 # === Инициализация клиента ===
 client = TelegramClient(phone, api_id, api_hash)
 
 
-async def get_or_create_topic_id(title):
-    pass
+async def get_forum_topic(input_channel, title):
+    try:
+        list_topics = await client(GetForumTopicsRequest(
+            channel=input_channel,
+            offset_date=None,
+            offset_id=0,
+            offset_topic=0,
+            limit=100
+        ))
+        for topic in list_topics.topics:
+            if topic.title == title:
+                logger.info(f"[🔁] Найден существующий топик '{title}'")
+                return topic
+        return
+    except Exception as e:
+        logger.error(f'[❗] Ошибка при получении списка топиков: {e}')
+        raise
+
+
+async def get_or_create_topic_entity(title):
+    try:
+        input_channel = await client.get_input_entity(target_forum_id)  # Получаем InputChannel группы
+
+        # Получаем список всех топиков (до 100)
+        topic = await get_forum_topic(input_channel, title)
+        if topic:
+            return topic
+
+        # # Если не найден — создаём
+        await client(CreateForumTopicRequest(channel=input_channel, title=title))
+        topic = await get_forum_topic(input_channel, title)
+        logger.info(f"[🆕] Создан новый топик '{title}' {topic.id}")
+        return topic
+
+    except Exception as e:
+        logger.error(f"[❗] Ошибка при получении/создании топика '{title}': {e}")
+        raise
+
 
 async def forward_to_forum(message, title):
-    print(message, title)
+    try:
+        input_topic = await get_or_create_topic_entity(title)
 
+        await client.send_message(
+            entity=target_forum_id,
+            message=message,
+            comment_to=input_topic.id
+        )
 
-async def list_user_chats(client: TelegramClient, show_users=False):
-    dialogs = await client.get_dialogs()
+        logger.info(f"[➡] Сообщение переслано в топик '{title}'")
 
-    result = []
-
-    for dialog in dialogs:
-        entity = dialog.entity
-
-        if isinstance(entity, Channel):
-            if entity.megagroup:
-                chat_type = "Супергруппа"
-            elif entity.broadcast:
-                chat_type = "Канал"
-            else:
-                chat_type = "Канал/Группа"
-        elif isinstance(entity, Chat):
-            chat_type = "Группа"
-        elif isinstance(entity, User):
-            if not show_users:
-                continue
-            chat_type = "Пользователь"
-        else:
-            chat_type = "Другое"
-        print(entity)
-        result.append({
-            "id": entity.id,
-            "title": getattr(entity, 'title', None) or getattr(entity, 'first_name', ''),
-            "username": getattr(entity, 'username', None),
-            "type": chat_type
-        })
-
-    return result
+    except Exception as e:
+        logger.error(f"[❗] Ошибка при пересылке в топик '{title}': {e}")
 
 
 async def get_all_topic(client: TelegramClient):
-    input_channel = await client.get_input_entity(-1002899127100)
+    input_channel = await client.get_input_entity(target_forum_id)
 
     result = await client(GetForumTopicsRequest(
         channel=input_channel,
@@ -67,14 +79,13 @@ async def get_all_topic(client: TelegramClient):
     ))
 
     for topic in result.topics:
-        (f"🟢 Тема: {topic.title} | ID: {topic.id}")
-
-
-
-
-
-
-
+        print(f"🟢 Тема: {topic.title} | ID: {topic.id}")
+        if topic.id == 1:
+            await client.send_message(
+                entity=input_channel,  # 👈 отправка напрямую в топик
+                message="Привет из нужной темы",
+                comment_to=7
+            )
 
 
 # === Обработка сообщений ===  в работе
@@ -97,14 +108,10 @@ async def watch_sources(event):
         logger.error(f"[❗] Ошибка в обработчике сообщений: {e}")
 
 
-
-
 # === Запуск клиента ===
 async def main():
     await client.start()
-    print("Бот запущен и следит за каналами...")
-    await get_all_topic(client)
-
+    logger.info("Бот запущен и следит за каналами...")
     await client.run_until_disconnected()
 
 
