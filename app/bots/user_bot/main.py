@@ -138,7 +138,7 @@ async def main():
     await client.start()
     logger.info("Бот запущен и следит за каналами...")
     await get_all_channels(client)
-    # await get_my_id(client)
+    await get_my_id(client)
     await client.run_until_disconnected()
 
 

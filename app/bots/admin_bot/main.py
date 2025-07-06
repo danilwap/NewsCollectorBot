@@ -5,7 +5,7 @@ from loader import dp, bot
 
 async def main():
     me = await bot.get_me()
-    print(me.id)
+    logger.info(me.id)
     register_handlers(dp)
     logger.info('Бот запущен')
     await dp.start_polling(bot)
