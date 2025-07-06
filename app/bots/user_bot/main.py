@@ -8,7 +8,7 @@ from services.db import get_active_channels, save_channels_to_db, init_db
 from telethon import TelegramClient, events
 from telethon.tl.functions.channels import JoinChannelRequest
 
-client = TelegramClient(phone, api_id, api_hash)
+client = TelegramClient(session=f"{str(phone)}.session", api_id=api_id, api_hash=api_hash, phone=str(phone))
 
 
 async def get_forum_topic(input_channel, title):
